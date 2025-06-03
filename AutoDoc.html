@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Advanced Tool Documentation Generator</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f9f9f9;
+      margin: 0;
+      padding: 20px;
+    }
+    h1, h2 {
+      text-align: center;
+    }
+    .tabs {
+      display: flex;
+      flex-wrap: wrap;
+      border-bottom: 2px solid #ccc;
+      margin-bottom: 20px;
+    }
+    .tab {
+      padding: 10px 20px;
+      cursor: pointer;
+      background: #d3d3d3;
+      border: 1px solid #aaa;
+      border-radius: 5px 5px 0 0;
+      margin-right: 5px;
+    }
+    .tab.active {
+      background: #fff;
+      border-bottom: none;
+    }
+    .tab-content {
+      display: none;
+      background: #fff;
+      border: 1px solid #ccc;
+      padding: 20px;
+      border-radius: 0 5px 5px 5px;
+    }
+    .tab-content.active {
+      display: block;
+    }
+    textarea, input[type="text"], input[type="date"], input[type="file"] {
+      width: 100%;
+      padding: 10px;
+      margin: 10px 0;
+      font-size: 14px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+    }
+    label {
+      font-weight: bold;
+      margin-top: 10px;
+      display: block;
+    }
+    .section {
+      margin-bottom: 20px;
+      padding: 10px;
+      border: 1px dashed #aaa;
+      background: #f5f5f5;
+    }
+    button {
+      background: #007bff;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      font-size: 16px;
+      cursor: pointer;
+      border-radius: 5px;
+      margin-top: 10px;
+      margin-right: 10px;
+    }
+    button:hover {
+      background: #0056b3;
+    }
+  </style>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html-docx-js/0.3.1/html-docx.min.js"></script>
+</head>
+<body>
+<h1>Advanced Tool Documentation Generator</h1>
+<div class="tabs" id="tabs"></div>
+<div id="tabContents"></div>
+
+<script>
+const sections = {
+  "Requirement Document": [
+    "Tool Name", "Version", "Author", "Author Email", "Document Date", "Business Problem", "Purpose of the Tool", "Scope of the Tool",
+    "Functional Requirements (Bulleted)", "Use Case Scenarios (Steps)", "System Diagram (optional)"
+  ],
+  "User Manual & Installation Guide": [
+    "Tool Name", "Version", "Overview", "Intended Audience", "Supported OS / Devices", "Installation Steps (Steps)",
+    "Usage Instructions (Bulleted)", "Environment Configuration", "Dependencies", "Screenshots / Images (optional)"
+  ],
+  "Technical Documentation": [
+    "Tool Name", "Version", "System Architecture Overview", "Technology Stack", "Module Descriptions", "API Endpoints Documentation",
+    "Database Schema Design", "Third-party Integrations", "Authentication Logic", "Error Handling", "CI/CD Setup", "Security Practices"
+  ]
+};
+
+const tabContainer = document.getElementById('tabs');
+const contentContainer = document.getElementById('tabContents');
+
+Object.entries(sections).forEach(([tabName, fields], index) => {
+  const tab = document.createElement('div');
+  tab.className = 'tab' + (index === 0 ? ' active' : '');
+  tab.innerText = tabName;
+  tab.onclick = () => showTab(index);
+  tabContainer.appendChild(tab);
+
+  const content = document.createElement('div');
+  content.className = 'tab-content' + (index === 0 ? ' active' : '');
+  content.id = 'tab' + index;
+
+  let html = `<h2>${tabName}</h2>`;
+  fields.forEach((label, i) => {
+    const id = `${tabName.replace(/\s+/g, '_')}_${i}`;
+    html += `<div class='section'>`;
+    html += `<label for='${id}'>${label}</label>`;
+    if (label.toLowerCase().includes('optional') || label.toLowerCase().includes('diagram') || label.toLowerCase().includes('image') || label.toLowerCase().includes('screenshot')) {
+      html += `<input type='file' id='${id}' accept='image/*'>`;
+    } else if (label.toLowerCase().includes('date')) {
+      html += `<input type='date' id='${id}'>`;
+    } else if (label.toLowerCase().includes('steps') || label.toLowerCase().includes('bulleted')) {
+      html += `<textarea id='${id}' rows='5' placeholder='Use bullets (•) or numbers (1. 2. 3.)'></textarea>`;
+    } else {
+      html += `<textarea id='${id}' rows='4'></textarea>`;
+    }
+    html += `</div>`;
+  });
+
+  if (tabName === "Requirement Document") {
+    html += `<button onclick="saveToLocalExcel('${tabName}')">Save</button>`;
+    html += `<button onclick="openExcelFile()">Open Excel</button>`;
+  } else {
+    html += `<button onclick="exportTab(${index}, '${tabName}')">Export to Word</button>`;
+  }
+
+  content.innerHTML = html;
+  contentContainer.appendChild(content);
+});
+
+function showTab(index) {
+  document.querySelectorAll('.tab').forEach((tab, i) => {
+    tab.classList.toggle('active', i === index);
+    document.getElementById('tab' + i).classList.toggle('active', i === index);
+  });
+}
+
+function exportTab(index, tabName) {
+  const container = document.getElementById('tab' + index);
+  let html = `<h1 style='text-align:center;'>${tabName}</h1>`;
+  container.querySelectorAll('.section').forEach(section => {
+    const label = section.querySelector('label').innerText;
+    const textarea = section.querySelector('textarea');
+    const input = section.querySelector('input[type="text"], input[type="date"]');
+    if (textarea && textarea.value.trim()) {
+      html += `<h3>${label}</h3><p>${textarea.value.replace(/\n/g, '<br>')}</p>`;
+    } else if (input && input.value.trim()) {
+      html += `<h3>${label}</h3><p>${input.value}</p>`;
+    }
+  });
+  const converted = window.htmlDocx.asBlob(html);
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(converted);
+  link.download = `${tabName.replace(/\s+/g, '_')}.docx`;
+  link.click();
+}
+
+function saveToLocalExcel(tabName) {
+  const container = document.querySelector('.tab-content.active');
+  const rowData = [];
+  container.querySelectorAll('.section').forEach(section => {
+    const textarea = section.querySelector('textarea');
+    const input = section.querySelector('input[type="text"], input[type="date"]');
+    if (textarea && textarea.value.trim()) {
+      rowData.push(textarea.value);
+    } else if (input && input.value.trim()) {
+      rowData.push(input.value);
+    } else {
+      rowData.push('');
+    }
+  });
+
+  let csv = rowData.join(',') + "\n";
+  let blob = new Blob([csv], { type: 'text/csv' });
+  let a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'Tool_Requirement.csv';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+}
+
+function openExcelFile() {
+  window.open('Tool_Requirement.xlsx', '_blank');
+}
+</script>
+</body>
+</html>
